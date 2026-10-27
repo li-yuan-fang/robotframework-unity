@@ -44,13 +44,13 @@ Login
 
 Check Login
     TRY
-        Wait Activity    com.gsc.phone_login.PhoneLoginActivity    5
+        Wait Activity    com.gsc.phone_login.PhoneLoginActivity    10
     EXCEPT    TimeoutException    type=START
         RETURN
     END
     Login
 
-Start GameView
+Wait GameView
     Wait Activity    .MainActivity    20
     Expect Element    xpath=//android.view.View[@content-desc="Game view"]    visible    20
-    Wait Until Keyword Succeeds    30s    1s    Try OCR Click    START
+    Wait Until Keyword Succeeds    40s    500ms    Try OCR Click    START
