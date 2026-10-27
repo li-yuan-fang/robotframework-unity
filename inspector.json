@@ -1,0 +1,5 @@
+{
+  "platformName": "Android",
+  "appium:automationName": "UiAutomator2",
+  "appium:noReset": true
+}
