@@ -22,3 +22,11 @@ Recover Weak Network
     FINALLY
         Run Network Command    delay    none
     END
+
+Pause Network
+    [Arguments]    ${seconds}=5
+    ${seconds}=    Convert To Integer    ${seconds}
+    Should Be True    $seconds > 0
+
+    ${command}=    Set Variable    echo sleep ${seconds} > /data/local/tmp/wifi_restore.sh; echo svc wifi enable >> /data/local/tmp/wifi_restore.sh; nohup sh /data/local/tmp/wifi_restore.sh </dev/null 2>&1 & svc wifi disable
+    Run Keyword And Ignore Error    Run Process    adb    -s    ${ADB_DEVICE}    shell    ${command}    timeout=${seconds}s
