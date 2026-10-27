@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "robotframework-unity-bridge"
+version = "0.1.0"
+description = "TCP/ADB bridge for testing Unity UGUI from Python and Robot Framework"
+requires-python = ">=3.9"
+
+[project.optional-dependencies]
+robot = ["robotframework>=6.1"]
+
+[tool.setuptools]
+py-modules = ["UnityBridge"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["_unity_bridge*"]

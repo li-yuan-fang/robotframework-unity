@@ -4,3 +4,17 @@ report.html
 
 BanG Dream!.apk
 configs/data.resource
+
+# Unity Bridge local checks and Python build outputs
+.bridge-tools/
+__pycache__/
+*.py[cod]
+*.egg-info/
+bridge/python/build/
+bridge/python/dist/
+bridge/tests/csharp/bin/
+bridge/tests/csharp/obj/
+
+__pycache__/*
+bin/*
+obj/*

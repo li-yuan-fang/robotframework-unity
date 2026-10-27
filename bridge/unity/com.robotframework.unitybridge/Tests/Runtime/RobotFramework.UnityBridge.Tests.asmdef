@@ -1,0 +1,6 @@
+{
+  "name": "RobotFramework.UnityBridge.Tests",
+  "references": ["RobotFramework.UnityBridge", "Unity.ugui", "Unity.Newtonsoft.Json"],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "autoReferenced": false
+}

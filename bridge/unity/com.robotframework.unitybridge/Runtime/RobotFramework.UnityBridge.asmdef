@@ -1,0 +1,6 @@
+{
+  "name": "RobotFramework.UnityBridge",
+  "rootNamespace": "RobotFramework.UnityBridge",
+  "references": ["Unity.ugui", "Unity.Newtonsoft.Json"],
+  "autoReferenced": true
+}

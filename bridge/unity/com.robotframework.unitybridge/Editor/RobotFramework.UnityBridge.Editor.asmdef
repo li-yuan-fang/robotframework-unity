@@ -1,0 +1,5 @@
+{
+  "name": "RobotFramework.UnityBridge.Editor",
+  "references": ["RobotFramework.UnityBridge", "Unity.ugui"],
+  "includePlatforms": ["Editor"]
+}

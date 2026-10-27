@@ -1,0 +1,4 @@
+{
+  "name": "RobotFramework.UnityBridge.Demo",
+  "references": ["RobotFramework.UnityBridge", "Unity.ugui"]
+}
