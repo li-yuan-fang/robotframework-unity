@@ -46,10 +46,13 @@ Click Center
     ${width}=     Get Window Width
     ${height}=    Get Window Height
 
-    ${center_x}=    Evaluate    int($width) // 2
-    ${center_y}=    Evaluate    int($height) // 2
+    ${center_x}=    Evaluate    int(${width} * 0.5)
+    ${center_y}=    Evaluate    int(${height} * 0.5)
 
-    Click Element At Coordinates    ${center_x}    ${center_y}
+    ${center_point}=    Create List    ${center_x}    ${center_y}
+    ${points}=    Create List    ${center_point}
+
+    Tap With Positions    300ms    @{points}
 
 Check Activity Overlay
     ${text_live}=    Set Variable    演出
