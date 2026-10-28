@@ -27,6 +27,8 @@ Open Garupa App
     ...    noReset=${no_reset_str}
     ...    fullReset=${reset_str}
     ...    noSign=${no_reset_str}
+    ...    appium:settings[ocrLanguage]=chi_sim+eng
+    ...    appium:settings[ocrInvertColors]=${True}
 
 Open Garupa
     Open Garupa App
