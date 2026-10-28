@@ -52,9 +52,9 @@ class OpenCVVision:
     ROBOT_LIBRARY_VERSION = "0.1.0"
 
     @keyword(KEYWORD, types=TYPES)
-    def cv_find_image_element(self, template, threshold=0.90, scale_min=0.50,
+    def cv_find_image_element(self, template, threshold=0.80, scale_min=0.50,
                            scale_max=5.00, scale_step=0.05, roi=None,
-                           score_margin=0.01, debug="none", debug_dir=None,
+                           score_margin=0.05, debug="none", debug_dir=None,
                            appium_library="AppiumLibrary", coordinate_mode="screenshot"):
         """Find a template in one in-memory screenshot from the active application.
 
