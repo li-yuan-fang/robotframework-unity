@@ -104,6 +104,8 @@ with UnityBridgeClient(adb_path="adb") as bridge:
 
 库自动执行 `adb -s SERIAL forward tcp:0 tcp:13000`，取得本地端口并完成 TCP 握手。用户无需维护转发命令。指定电脑端口时使用 `host_port=23000`，内部采用 `--no-rebind` 避免覆盖已有映射。
 
+启动应用后可以直接调用 `Connect To Unity` / `connect()`，在 `timeout` 总预算内自动等待 SDK 握手成功，无需先固定 Sleep。连接返回后，界面加载仍通过元素状态等待判断，详见第 7 节。
+
 未指定 serial 时，必须恰好有一个已授权的 `device` 状态设备。关闭时仅删除本实例创建且当前仍然匹配的转发。设备离线导致清理失败会报告具体错误，恢复连接后可以再次 `close()` 清理。
 
 ## 5. Robot Framework 用法
@@ -155,7 +157,46 @@ python -m robot -d results/bridge -v MODE:android -v DEVICE_SERIAL:emulator-5554
 
 协议和详细边界参见 [DESIGN.md](DESIGN.md)。
 
-## 7. 本机检查与验证边界
+## 7. 等待服务就绪与查看连接耗时
+
+`Connect To Unity` 和 `Connect To Unity Editor` 都会等待合法的 `bridge.hello` 成功响应。只连通 TCP 端口不算就绪：ADB 的电脑端口可能已经可连，但设备上的 SDK 尚未监听，握手会立即断开。连接关键字会在总超时内重新建连并握手，成功就立即返回。
+
+直接修改原有 Setup 即可，`30s` 表示最长等待时间：
+
+```robot
+Test Unity Bridge
+    [Setup]    Connect To Unity    serial=${ADB_DEVICE}    server_port=13000    timeout=30s
+    [Teardown]    Close Unity Connection
+    Wait For Unity Element State    test.jump    visible    timeout=10s
+    Click Unity Element    test.jump    timeout=5s
+```
+
+需要记录本次实际等待多久时，在自己的 Setup 关键字中获取返回字典：
+
+```robot
+*** Keywords ***
+Connect And Wait For Unity
+    ${info}=    Connect To Unity    serial=${ADB_DEVICE}    server_port=13000    timeout=30s
+    Log    Unity Bridge ready in ${info}[connect_elapsed_ms] ms; attempts=${info}[connect_attempts]
+```
+
+普通 Python：
+
+```python
+info = bridge.connect(serial="emulator-5554", server_port=13000, timeout=30)
+print(info["connect_elapsed_ms"], info["connect_attempts"])
+```
+
+- `connect_elapsed_ms` 使用 Python 单调时钟统计，从本次 Connect 开始到握手成功；Android 模式包含设备检查与创建转发。这是本次客户端观察到的连接等待耗时，不能用来推断 APK 进程启动到监听的精确耗时。
+- `connect_attempts` 为 TCP / hello 尝试次数，首尝即成功时为 `1`。字段由 Python 添加，不改变 TCP 协议。
+- 重试只用于建连失败、握手 EOF / reset / 传输超时。每次尝试最多约 1 秒，失败后间隔最多 0.1 秒；所有尝试共享 `timeout`，不会每次重新获得完整预算。
+- 协议不兼容、坏 JSON、`SERVER_BUSY` 等明确 RPC 错误立即失败，ADB 设备/转发错误也直接报告。每个失败尝试都会关闭 socket，重试期间复用同一条本实例转发。
+- 超时后抛出 `BridgeConnectError`，包含尝试次数、TCP/hello 耗时与最后错误，随后清理本实例转发。清理有独立的有界预算，因此失败调用的总墙钟耗时可能稍长于连接预算。
+- Connect 成功只确认 SDK 通信可用；界面就绪继续用 `Wait For Unity Element State`。已连接后的元素操作不自动重连、重放，点击仍只派发一次。
+
+此变更只涉及 Python 库，已可工作的 APK 不需要为它重新打包。更新库时保留 `UnityBridge.py` 和整个 `_unity_bridge` 子目录；若通过 pip 安装，需重新安装更新后的本地包并重启测试进程。
+
+## 8. 本机检查与验证边界
 
 当前开发机器没有 Unity、ADB 和 Robot Framework。已执行结果见 [VALIDATION.md](VALIDATION.md)。本仓库提供两类本机检查，以及待 Unity 环境执行的 PlayMode 测试：
 

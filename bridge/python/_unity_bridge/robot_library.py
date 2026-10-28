@@ -33,13 +33,17 @@ class UnityBridge:
 
     @keyword("Connect To Unity")
     def connect_to_unity(self, serial=None, server_port=13000, host_port="auto", timeout="10s"):
-        """Create an owned ADB forward, connect, and negotiate the protocol."""
+        """Wait for SDK hello; timeout covers ADB and all connection attempts.
+
+        Returns connection info including connect_elapsed_ms and connect_attempts.
+        Transport failures during startup are retried; invalid protocols fail immediately.
+        """
         local_port = None if host_port is None or str(host_port).lower() == "auto" else host_port
         return self.client.connect(serial, server_port, local_port, _time(timeout))
 
     @keyword("Connect To Unity Editor")
     def connect_to_unity_editor(self, server_port=13000, timeout="10s"):
-        """Connect to a running Editor/demo player directly, without ADB."""
+        """Wait for Editor/desktop SDK hello without ADB; return connection timing."""
         return self.client.connect_local(server_port=server_port, timeout=_time(timeout))
 
     @keyword("Close Unity Connection")

@@ -2,7 +2,7 @@ import socket
 import time
 
 from .adb import AdbForwardManager
-from .errors import BridgeConnectError, BridgeError, BridgeProtocolError
+from .errors import BridgeConnectError, BridgeError, BridgeProtocolError, BridgeTransportError
 from .transport import RpcClient
 from .validation import STATES, element_id as validate_element_id, point as validate_point, port, seconds
 
@@ -30,54 +30,85 @@ class UnityBridgeClient:
             raise BridgeError("A session or forward already exists; call close() before connecting")
 
     def connect(self, serial=None, server_port=13000, host_port=None, timeout=10.0):
+        """Wait for a valid SDK handshake within one ADB/TCP/hello timeout."""
         self._before_connect()
         server_port = port(server_port, "server_port")
         host_port = None if host_port is None else port(host_port, "host_port")
-        deadline = time.monotonic() + seconds(timeout, "connect timeout")
+        timeout = seconds(timeout, "connect timeout")
+        started = time.monotonic()
+        deadline = started + timeout
         try:
             forward = self._adb.create(serial, server_port, host_port, deadline)
-            hello = self._open("127.0.0.1", forward.local, deadline)
+            hello, attempts = self._open("127.0.0.1", forward.local, deadline)
             self.connection_info = {"mode": "adb", "serial": forward.serial,
-                                    "host_port": forward.local, "server_port": server_port, **hello}
+                                    "host_port": forward.local, "server_port": server_port, **hello,
+                                    "connect_elapsed_ms": (time.monotonic() - started) * 1000,
+                                    "connect_attempts": attempts}
             return dict(self.connection_info)
         except BaseException as exc:
             self._cleanup_after_failure(exc)
             raise
 
     def connect_local(self, host="127.0.0.1", server_port=13000, timeout=10.0):
+        """Wait for an Editor/desktop SDK handshake without ADB."""
         self._before_connect()
         if host not in ("127.0.0.1", "localhost", "::1"):
             raise ValueError("The demo supports loopback hosts only")
         server_port = port(server_port, "server_port")
-        deadline = time.monotonic() + seconds(timeout, "connect timeout")
+        timeout = seconds(timeout, "connect timeout")
+        started = time.monotonic()
+        deadline = started + timeout
         try:
-            hello = self._open(host, server_port, deadline)
-            self.connection_info = {"mode": "local", "host": host, "server_port": server_port, **hello}
+            hello, attempts = self._open(host, server_port, deadline)
+            self.connection_info = {"mode": "local", "host": host, "server_port": server_port, **hello,
+                                    "connect_elapsed_ms": (time.monotonic() - started) * 1000,
+                                    "connect_attempts": attempts}
             return dict(self.connection_info)
         except BaseException as exc:
             self._cleanup_after_failure(exc)
             raise
 
     def _open(self, host, server_port, deadline):
+        started = time.monotonic()
+        attempts = 0
         last_error = None
-        while time.monotonic() < deadline:
+        while True:
+            now = time.monotonic()
+            if now >= deadline:
+                break
+            attempts += 1
+            # Bound each attempt so a connected but silent peer cannot consume
+            # the entire startup wait. All attempts still share the outer deadline.
+            attempt_deadline = min(deadline, now + 1.0)
             sock = None
+            rpc = None
             try:
                 sock = socket.create_connection((host, server_port),
-                                                timeout=min(1.0, deadline - time.monotonic()))
+                                                timeout=attempt_deadline - now)
                 sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-                self._rpc = RpcClient(sock, self.transport_grace)
-                remaining = deadline - time.monotonic()
+                rpc = RpcClient(sock, self.transport_grace)
+                remaining = attempt_deadline - time.monotonic()
                 if remaining <= 0:
-                    raise BridgeConnectError("Connection deadline exceeded before handshake")
-                return self._rpc.request("bridge.hello", {}, min(5.0, remaining),
-                                         validator=self._hello, deadline=deadline)
-            except OSError as exc:
+                    raise BridgeTransportError("Connection attempt deadline exceeded before handshake")
+                hello = rpc.request("bridge.hello", {}, remaining,
+                                    validator=self._hello, deadline=attempt_deadline)
+                self._rpc = rpc
+                return hello, attempts
+            except (OSError, BridgeTransportError) as exc:
+                # ADB can accept locally and then close while the device SDK
+                # is still starting. Only the side-effect-free hello is retried.
                 last_error = exc
-                if sock is not None:
+            finally:
+                if rpc is not None:
+                    if rpc is not self._rpc:
+                        rpc.close()
+                elif sock is not None:
                     sock.close()
-                time.sleep(max(0.0, min(0.1, deadline - time.monotonic())))
-        raise BridgeConnectError(f"Could not connect to {host}:{server_port}: {last_error}")
+            time.sleep(max(0.0, min(0.1, deadline - time.monotonic())))
+        raise BridgeConnectError(
+            f"Unity Bridge was not ready at {host}:{server_port} before the connect deadline; "
+            f"TCP/hello elapsed={time.monotonic() - started:.3f}s, attempts={attempts}, "
+            f"last error: {last_error}") from last_error
 
     @staticmethod
     def _hello(result):

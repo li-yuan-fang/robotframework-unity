@@ -18,8 +18,8 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
 from UnityBridge import (  # noqa: E402
-    BridgeClickOutcomeUnknown, BridgeClickTimeout, BridgeCleanupError, BridgeError, BridgeProtocolError,
-    BridgeWaitTimeout, DeviceSelectionError, UnityBridge, UnityBridgeClient,
+    BridgeClickOutcomeUnknown, BridgeClickTimeout, BridgeCleanupError, BridgeConnectError, BridgeError,
+    BridgeProtocolError, BridgeRpcError, BridgeWaitTimeout, DeviceSelectionError, UnityBridge, UnityBridgeClient,
 )
 from _unity_bridge.adb import AdbForwardManager, Forward
 from _unity_bridge.transport import RpcClient
@@ -41,9 +41,10 @@ def hello(request):
 
 
 class FixtureServer:
-    """One-connection fake peer, only used to exercise client error paths."""
-    def __init__(self, handler):
+    """Fake peer for client error paths, optionally accepting reconnects."""
+    def __init__(self, handler, connections=1):
         self.handler = handler
+        self.connections = connections
         self.listener = socket.socket()
         self.listener.bind(("127.0.0.1", 0))
         self.listener.listen(1)
@@ -59,17 +60,18 @@ class FixtureServer:
 
     def run(self):
         try:
-            with self.listener.accept()[0] as connection:
-                connection.settimeout(3)
-                with connection.makefile("rb") as reader:
-                    while True:
-                        line = reader.readline()
-                        if not line:
-                            break
-                        request = json.loads(line)
-                        self.requests.append(request)
-                        if self.handler(connection, request) is False:
-                            break
+            for _ in range(self.connections):
+                with self.listener.accept()[0] as connection:
+                    connection.settimeout(3)
+                    with connection.makefile("rb") as reader:
+                        while True:
+                            line = reader.readline()
+                            if not line:
+                                break
+                            request = json.loads(line)
+                            self.requests.append(request)
+                            if self.handler(connection, request) is False:
+                                break
         except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
             pass
         except Exception as exc:
@@ -95,6 +97,81 @@ class PythonClientTests(unittest.TestCase):
             with self.assertRaisesRegex(BridgeError, "Not connected"):
                 client.get_state("button")
         client.close()
+
+    def test_waits_through_connection_refusal_then_returns_timing(self):
+        def handler(connection, request):
+            connection.sendall(encode(hello(request)))
+        real_connect = socket.create_connection
+        calls = 0
+
+        def connect_when_ready(address, timeout):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise ConnectionRefusedError("SDK still starting")
+            return real_connect(address, timeout=timeout)
+
+        with FixtureServer(handler) as server, UnityBridgeClient() as client:
+            with patch("_unity_bridge.client.socket.create_connection",
+                       side_effect=connect_when_ready):
+                info = client.connect_local(server_port=server.port, timeout=2)
+            self.assertTrue(client.connected)
+            self.assertEqual(info["connect_attempts"], 2)
+            self.assertGreaterEqual(info["connect_elapsed_ms"], 0)
+            self.assertEqual(client.connection_info, info)
+
+    def test_handshake_failure_retries_until_hello_without_replaying_operations(self):
+        def handler(connection, request):
+            if len(server.requests) <= 2:
+                return False  # Model an ADB forward whose device listener is not ready.
+            response = hello(request) if request["method"] == "bridge.hello" else success(request, {
+                "snapshot": {"id": "button", "exists": True, "visible": True, "enabled": True},
+                "elapsed_ms": 1})
+            connection.sendall(encode(response))
+        with FixtureServer(handler, connections=3) as server, UnityBridgeClient() as client:
+            info = client.connect_local(server_port=server.port, timeout=3)
+            self.assertEqual(info["connect_attempts"], 3)
+            self.assertTrue(client.get_state("button")["visible"])
+            self.assertEqual([r["method"] for r in server.requests],
+                             ["bridge.hello", "bridge.hello", "bridge.hello", "element.get"])
+            self.assertEqual([r["id"] for r in server.requests], [1, 1, 1, 2])
+
+    def test_silent_handshake_attempt_does_not_consume_whole_startup_wait(self):
+        def handler(connection, request):
+            if len(server.requests) == 1:
+                self.assertEqual(connection.recv(1), b"")  # Client must abandon this silent attempt.
+                return False
+            connection.sendall(encode(hello(request)))
+        with FixtureServer(handler, connections=2) as server, UnityBridgeClient() as client:
+            info = client.connect_local(server_port=server.port, timeout=3)
+            self.assertEqual(info["connect_attempts"], 2)
+            self.assertTrue(client.connected)
+
+    def test_connection_wait_has_one_deadline_and_preserves_last_failure(self):
+        with UnityBridgeClient() as client:
+            failure = ConnectionRefusedError("SDK still starting")
+            started = time.monotonic()
+            with patch("_unity_bridge.client.socket.create_connection", side_effect=failure):
+                with self.assertRaises(BridgeConnectError) as caught:
+                    client.connect_local(timeout=0.15)
+            self.assertLess(time.monotonic() - started, 0.6)
+            self.assertIn("127.0.0.1:13000", str(caught.exception))
+            self.assertIn("attempts=", str(caught.exception))
+            self.assertIn("SDK still starting", str(caught.exception))
+            self.assertIs(caught.exception.__cause__, failure)
+            self.assertFalse(client.connected)
+            self.assertIsNone(client._rpc)
+
+    def test_explicit_rpc_error_during_hello_is_not_retried(self):
+        def handler(connection, request):
+            connection.sendall(encode({"v": 1, "id": request["id"], "ok": False,
+                                      "error": {"code": "SERVER_BUSY", "message": "In use", "data": {}}}))
+        with FixtureServer(handler) as server, UnityBridgeClient() as client:
+            with self.assertRaises(BridgeRpcError) as caught:
+                client.connect_local(server_port=server.port)
+            self.assertEqual(caught.exception.code, "SERVER_BUSY")
+            self.assertEqual(len(server.requests), 1)
+            self.assertIsNone(client._rpc)
 
     def test_numeric_and_locator_validation(self):
         for value in (True, 0, -1, float("inf"), float("nan"), 121, "5s"):
@@ -209,6 +286,13 @@ class PythonClientTests(unittest.TestCase):
 
     def test_robot_keywords_delegate_without_exposing_transport(self):
         library = UnityBridge()
+        info = {"connect_elapsed_ms": 123.0, "connect_attempts": 2}
+        with patch.object(library.client, "connect", return_value=info) as connect:
+            self.assertEqual(library.connect_to_unity(serial="serial-one", timeout=30), info)
+            connect.assert_called_once_with("serial-one", 13000, None, 30)
+        with patch.object(library.client, "connect_local", return_value=info) as connect_local:
+            self.assertEqual(library.connect_to_unity_editor(timeout=30), info)
+            connect_local.assert_called_once_with(server_port=13000, timeout=30)
         with patch.object(library.client, "click", return_value={"dispatched": True}) as click:
             self.assertTrue(library.click_unity_element("button", timeout=2)["dispatched"])
             click.assert_called_once_with("button", 2, None)
@@ -276,6 +360,42 @@ class AdbTests(unittest.TestCase):
                 client.connect(serial="serial-one")
             self.assertIsNone(self.manager.owned)
             self.assertFalse(client.connected)
+            self.assertEqual(len(server.requests), 1)
+
+    def test_startup_retry_keeps_one_forward_until_success(self):
+        def handler(connection, request):
+            if len(server.requests) == 1:
+                return False
+            connection.sendall(encode(hello(request)))
+        with FixtureServer(handler, connections=2) as server:
+            self.allocated = server.port
+            with UnityBridgeClient() as client:
+                client._adb = self.manager
+                info = client.connect(serial="serial-one", timeout=3)
+                self.assertEqual(info["connect_attempts"], 2)
+                self.assertEqual(info["serial"], "serial-one")
+                self.assertEqual(info["host_port"], server.port)
+                self.assertIsNotNone(self.manager.owned)
+                self.assertEqual(sum("tcp:0" in c for c in self.commands), 1)
+            self.assertIsNone(self.manager.owned)
+            self.assertEqual(sum("--remove" in c for c in self.commands), 1)
+
+    def test_startup_timeout_closes_socket_and_cleans_forward(self):
+        def handler(connection, request):
+            self.assertEqual(connection.recv(1), b"")  # No reply; verify timeout closes the peer.
+            return False
+        with FixtureServer(handler) as server:
+            self.allocated = server.port
+            client = UnityBridgeClient()
+            client._adb = self.manager
+            started = time.monotonic()
+            with self.assertRaises(BridgeConnectError):
+                client.connect(serial="serial-one", timeout=0.15)
+            self.assertLess(time.monotonic() - started, 0.6)
+            self.assertFalse(client.connected)
+            self.assertIsNone(self.manager.owned)
+            self.assertEqual(sum("tcp:0" in c for c in self.commands), 1)
+            self.assertEqual(sum("--remove" in c for c in self.commands), 1)
 
     def test_fixed_port_uses_no_rebind(self):
         self.manager.create("serial-one", 13000, 23000, time.monotonic() + 5)

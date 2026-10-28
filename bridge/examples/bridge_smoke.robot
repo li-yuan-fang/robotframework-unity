@@ -7,16 +7,18 @@ Suite Teardown    Close Unity Connection
 ${MODE}             editor
 ${DEVICE_SERIAL}    ${None}
 ${SERVER_PORT}      13000
+${CONNECT_TIMEOUT}    30s
 
 *** Keywords ***
 Connect Demo
     IF    '${MODE}' == 'android'
-        Connect To Unity    serial=${DEVICE_SERIAL}    server_port=${SERVER_PORT}
+        ${info}=    Connect To Unity    serial=${DEVICE_SERIAL}    server_port=${SERVER_PORT}    timeout=${CONNECT_TIMEOUT}
     ELSE IF    '${MODE}' == 'editor'
-        Connect To Unity Editor    server_port=${SERVER_PORT}
+        ${info}=    Connect To Unity Editor    server_port=${SERVER_PORT}    timeout=${CONNECT_TIMEOUT}
     ELSE
         Fail    MODE must be editor or android
     END
+    Log    Unity Bridge ready in ${info}[connect_elapsed_ms] ms; attempts=${info}[connect_attempts]
 
 *** Test Cases ***
 Four State Conditions And One Click
