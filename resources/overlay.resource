@@ -2,6 +2,9 @@
 Library    AppiumLibrary
 Resource    ./vision.resource
 
+*** Variables ***
+${ASSETS_BTN_DIR}    ${CURDIR}/../assets/buttons
+
 *** Keywords ***
 Check Story Overlay
     ${text_menu}=    Set Variable    菜单
@@ -19,26 +22,30 @@ Check Story Overlay
     RETURN    ${True}
 
 Check Activity Popup Overlay
-    ${text_next}=    Set Variable    下一步
-    ${text_close}=    Set Variable    关闭
+    # ${text_next}=    Set Variable    下一步
+    # ${text_close}=    Set Variable    关闭
+    ${path_next}=    Set Variable    ${ASSETS_BTN_DIR}/next.png
+    ${path_close}=    Set Variable    ${ASSETS_BTN_DIR}/close.png
 
-    ${exists_next}=    Run Keyword And Return Status    OCR Text Should Exist    ${text_next}
-    ${exists_close}=    Run Keyword And Return Status    OCR Text Should Exist    ${text_close}
+    ${exists_next}=    Run Keyword And Return Status    Find Image Element    ${path_next}
+    ${exists_close}=    Run Keyword And Return Status    Find Image Element    ${path_close}
     IF    not(${exists_next}) and not(${exists_close})
         RETURN    ${False}
     END
 
+    Log To Console    next:${exists_next}
+
     WHILE    ${exists_next} or ${exists_close}
         IF    ${exists_next}
-            Wait Until Keyword Succeeds    40s    500ms    Try OCR Click    ${text_next}
+            Wait Until Keyword Succeeds    40s    500ms    Try Image Click    ${path_next}    0.6
         ELSE IF    ${exists_close}
-            Wait Until Keyword Succeeds    40s    500ms    Try OCR Click    ${text_close}
+            Wait Until Keyword Succeeds    40s    500ms    Try Image Click    ${path_close}    0.6
         END
 
         Sleep    3
 
-        ${exists_next}=    Run Keyword And Return Status    OCR Text Should Exist    ${text_next}
-        ${exists_close}=    Run Keyword And Return Status    OCR Text Should Exist    ${text_close}
+        ${exists_next}=    Run Keyword And Return Status    Find Image Element    ${path_next}
+        ${exists_close}=    Run Keyword And Return Status    Find Image Element    ${path_close}
     END
     RETURN    ${True}
 

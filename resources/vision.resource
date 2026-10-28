@@ -47,6 +47,18 @@ Find Image Element
     RETURN    ${element}
 
 Try Image Click
-    [Arguments]    ${image_path}    ${threshold}=0.5
+    [Arguments]    ${image_path}    ${threshold}=0.6
     ${element}=    Find Image Element    ${image_path}    ${threshold}
+
+    # 要求图片尺寸严格一致 实际可行性低 可能需要引入OpenCV识别
+    ${rect}=    Evaluate    $element.rect
+    ${x}=    Set Variable    ${rect}[x]
+    ${y}=    Set Variable    ${rect}[y]
+    ${width}=    Set Variable    ${rect}[width]
+    ${height}=    Set Variable    ${rect}[height]
+
+    ${w}=     Get Window Width
+    ${h}=    Get Window Height
+    Log To Console    Pos:(${x}, ${y}), Size:${width} × ${height}
+
     Call Method    ${element}    click
