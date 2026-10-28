@@ -6,6 +6,14 @@
 
 ## Start
 
+**建议先安装OpenCV**
+
+```shell
+pip install opencv-python
+```
+
+启动第一个demo
+
 ```shell
 robot -d results ./tests/hello/hello.robot
 ```
