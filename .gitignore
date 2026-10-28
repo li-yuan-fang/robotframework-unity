@@ -2,7 +2,8 @@ log.html
 output.xml
 report.html
 
-BanG Dream!.apk
+*.apk
+Test2D*
 configs/data.resource
 
 # Unity Bridge local checks and Python build outputs
