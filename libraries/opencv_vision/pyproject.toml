@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "robotframework-opencv-vision"
+version = "0.1.0"
+description = "In-memory multiscale image matching for Robot Framework and Appium"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["numpy>=1.26,<3", "opencv-python-headless>=4.8,<6"]
+
+[project.optional-dependencies]
+robot = ["robotframework>=6.1", "robotframework-appiumlibrary>=2.1"]
+
+[tool.setuptools]
+py-modules = ["OpenCVVision"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["_opencv_vision*"]
