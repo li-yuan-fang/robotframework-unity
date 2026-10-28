@@ -19,16 +19,13 @@ Start Game
     ...    appActivity=${APP_ACTIVITY}
     ...    automationName=UiAutomator2
 
-    Wait Activity    ${APP_ACTIVITY}    10
-
-    Sleep    10
-
 Test Unity Bridge
-    [Setup]    Connect To Unity    serial=${ADB_DEVICE}    server_port=13000
+    [Setup]    Connect To Unity    serial=${ADB_DEVICE}    server_port=13000    timeout=30s
     [Teardown]    Close Unity Connection
-    Wait For Unity Element State    test.jump    visible    timeout=10s
+    ${btn_jump}=    test.jump
+    Wait For Unity Element State    ${btn_jump}    visible    timeout=10s
     FOR    ${index}    IN RANGE    10
-        Click Unity Element    test.jump    timeout=5s
+        Click Unity Element    ${btn_jump}    timeout=5s
         Sleep    2
     END
 
