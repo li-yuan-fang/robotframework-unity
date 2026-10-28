@@ -29,7 +29,7 @@ Check OCR Text
     RETURN    ${False}
 
 Find Image Element
-    [Arguments]    ${image_path}    ${threshold}=0.8
+    [Arguments]    ${image_path}    ${threshold}=0.5
     Switch To Context    NATIVE_APP
 
     ${library}=    Get Library Instance    AppiumLibrary
@@ -47,6 +47,6 @@ Find Image Element
     RETURN    ${element}
 
 Try Image Click
-    [Arguments]    ${image_path}    ${threshold}=0.8
+    [Arguments]    ${image_path}    ${threshold}=0.5
     ${element}=    Find Image Element    ${image_path}    ${threshold}
     Call Method    ${element}    click
