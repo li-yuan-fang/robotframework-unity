@@ -35,7 +35,6 @@ Check Activity Popup Overlay
     ${element_next_active}=    Run Keyword And Ignore Error    CV Find Image Element    ${path_next_active}
     ${element_close}=    Run Keyword And Ignore Error    CV Find Image Element    ${path_close}
     IF    ('${element_next}[0]' == 'FAIL') and ('${element_next_active}[0]' == 'FAIL') and ('${element_close}[0]' == 'FAIL')
-        Log To Console    No Match
         RETURN    ${False}
     END
 
