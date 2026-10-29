@@ -8,9 +8,12 @@ Hello CV
     Open Garupa App
     Log To Console    \nOpen Application OK
 
-    Check Activity Popup Overlay
+    # Check Activity Popup Overlay
 
     # Capture Page Screenshot    ${EXECDIR}/snapshot.png
+    # Switch To Context    OCR
+    # ${original}=    Get Source
+    # Log To Console    ${original}
 
     # ${width}=     Get Window Width
     # ${height}=    Get Window Height

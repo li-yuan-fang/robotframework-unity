@@ -7,7 +7,7 @@ Resource    ../configs/data.resource
 
 *** Variables ***
 ${APPIUM_URL}        http://localhost:4723
-${ADB_DEVICE}        device
+${ADB_DEVICE}        emulator-5554
 ${APP_PATH}          ${CURDIR}/../BanG Dream!.apk
 ${APP_PACKAGE}       com.bilibili.star.bili
 ${APP_ACTIVITY}      com.bilibili.star.bili.PermissionActivity
@@ -27,7 +27,8 @@ Open Garupa App
     ...    noReset=${no_reset_str}
     ...    fullReset=${reset_str}
     ...    noSign=${no_reset_str}
-    ...    appium:settings[ocrLanguage]=chi_sim+eng
+    # ...    appium:settings[ocrLanguage]=chi_sim+eng
+    # 实测发现中文OCR准确性太低
     ...    appium:settings[ocrInvertColors]=${True}
 
 Open Garupa
