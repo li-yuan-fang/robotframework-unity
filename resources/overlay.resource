@@ -22,30 +22,33 @@ Check Story Overlay
     RETURN    ${True}
 
 Check Activity Popup Overlay
-    # ${text_next}=    Set Variable    下一步
-    # ${text_close}=    Set Variable    关闭
     ${path_next}=    Set Variable    ${ASSETS_BTN_DIR}/next.png
+    ${path_next_active}=    Set Variable    ${ASSETS_BTN_DIR}/next_active.png
     ${path_close}=    Set Variable    ${ASSETS_BTN_DIR}/close.png
 
-    ${exists_next}=    Run Keyword And Return Status    Find Image Element    ${path_next}
-    ${exists_close}=    Run Keyword And Return Status    Find Image Element    ${path_close}
-    IF    not(${exists_next}) and not(${exists_close})
+    ${element_next}=    Run Keyword And Ignore Error    CV Find Image Element    ${path_next}
+    ${element_next_active}=    Run Keyword And Ignore Error    CV Find Image Element    ${path_next_active}
+    ${element_close}=    Run Keyword And Ignore Error    CV Find Image Element    ${path_close}
+    IF    (${element_next}[0] == FAIL) and (${element_next_active}[0] == FAIL) and (${element_close}[0] == FAIL)
+        Log To Console    No Match
         RETURN    ${False}
     END
 
-    Log To Console    next:${exists_next}
-
-    WHILE    ${exists_next} or ${exists_close}
-        IF    ${exists_next}
-            Wait Until Keyword Succeeds    40s    500ms    Try Image Click    ${path_next}    0.6
-        ELSE IF    ${exists_close}
-            Wait Until Keyword Succeeds    40s    500ms    Try Image Click    ${path_close}    0.6
+    WHILE    (${element_next}[0] == PASS) or (${element_next_active}[0] == PASS) or (${element_close}[0] == PASS)
+        IF    ${element_next}[0] == PASS
+            CV Click Image Element    ${element_next}
+        ELSE IF    ${element_next_active}[0] == PASS
+            Log To Console    \n(${element_next_active}[1].rect[x], ${element_next_active}[1].rect[y])
+            CV Click Image Element    ${element_next_active}
+        ELSE IF    ${element_close}[0] == PASS
+            CV Click Image Element    ${element_close}
         END
 
         Sleep    3
 
-        ${exists_next}=    Run Keyword And Return Status    Find Image Element    ${path_next}
-        ${exists_close}=    Run Keyword And Return Status    Find Image Element    ${path_close}
+        ${element_next}=    Run Keyword And Ignore Error    CV Find Image Element    ${path_next}
+        ${element_next_active}=    Run Keyword And Ignore Error    CV Find Image Element    ${path_next_active}
+        ${element_close}=    Run Keyword And Ignore Error    CV Find Image Element    ${path_close}
     END
     RETURN    ${True}
 
