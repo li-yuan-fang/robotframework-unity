@@ -29,19 +29,18 @@ Check Activity Popup Overlay
     ${element_next}=    Run Keyword And Ignore Error    CV Find Image Element    ${path_next}
     ${element_next_active}=    Run Keyword And Ignore Error    CV Find Image Element    ${path_next_active}
     ${element_close}=    Run Keyword And Ignore Error    CV Find Image Element    ${path_close}
-    IF    (${element_next}[0] == FAIL) and (${element_next_active}[0] == FAIL) and (${element_close}[0] == FAIL)
+    IF    ('${element_next}[0]' == 'FAIL') and ('${element_next_active}[0]' == 'FAIL') and ('${element_close}[0]' == 'FAIL')
         Log To Console    No Match
         RETURN    ${False}
     END
 
-    WHILE    (${element_next}[0] == PASS) or (${element_next_active}[0] == PASS) or (${element_close}[0] == PASS)
-        IF    ${element_next}[0] == PASS
-            CV Click Image Element    ${element_next}
-        ELSE IF    ${element_next_active}[0] == PASS
-            Log To Console    \n(${element_next_active}[1].rect[x], ${element_next_active}[1].rect[y])
-            CV Click Image Element    ${element_next_active}
-        ELSE IF    ${element_close}[0] == PASS
-            CV Click Image Element    ${element_close}
+    WHILE    ('${element_next}[0]' == 'PASS') or ('${element_next_active}[0]' == 'PASS') or ('${element_close}[0]' == 'PASS')
+        IF    '${element_next}[0]' == 'PASS'
+            CV Click Image Element    ${element_next}[1]
+        ELSE IF    '${element_next_active}[0]' == 'PASS'
+            CV Click Image Element    ${element_next_active}[1]
+        ELSE IF    '${element_close}[0]' == 'PASS'
+            CV Click Image Element    ${element_close}[1]
         END
 
         Sleep    3
@@ -65,9 +64,9 @@ Click Center
     Tap With Positions    300ms    @{points}
 
 Check Activity Overlay
-    ${text_live}=    Set Variable    演出
+    ${path_live}=    Set Variable    ${ASSETS_BTN_DIR}/live.png
 
-    ${exists}=    Run Keyword And Return Status    OCR Text Should Exist    ${text_live}
+    ${exists}=    Run Keyword And Return Status    CV Find Image Element    ${path_live}
     WHILE    not(${exists})
         ${result_story}=    Check Story Overlay
         IF    ${result_story}    Sleep    3
@@ -81,5 +80,5 @@ Check Activity Overlay
             Sleep    5
         END
 
-        ${exists}=    Run Keyword And Return Status    OCR Text Should Exist    ${text_live}
+        ${exists}=    Run Keyword And Return Status    CV Find Image Element    ${path_live}
     END
