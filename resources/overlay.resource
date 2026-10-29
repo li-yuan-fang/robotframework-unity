@@ -7,18 +7,23 @@ ${ASSETS_BTN_DIR}    ${CURDIR}/../assets/buttons
 
 *** Keywords ***
 Check Story Overlay
-    ${text_menu}=    Set Variable    菜单
-    ${text_skip}=    Set Variable    跳过
-    ${exists}=    Run Keyword And Return Status    OCR Text Should Exist    ${text_menu}
-    IF    not(${exists})
+    ${path_menu}=    Set Variable    ${ASSETS_BTN_DIR}/story_menu.png
+    ${path_skip}=    Set Variable    ${ASSETS_BTN_DIR}/story_skip.png
+    ${path_skip_active}=    Set Variable    ${ASSETS_BTN_DIR}/skip_active.png
+    ${result}=    Run Keyword And Ignore Error    CV Find Image Element    ${path_menu}
+    IF    '${result}[0]' == 'FAIL'
         RETURN    ${False}
     END
 
-    Wait Until Keyword Succeeds    10s    1s    Try OCR Click    ${text_menu}
-    Sleep    3
-    Wait Until Keyword Succeeds    10s    1s    Try OCR Click    ${text_skip}
-    Sleep    3
-    Wait Until Keyword Succeeds    10s    1s    Try OCR Click    ${text_skip}
+    CV Click Image Element    ${result}[1]
+    Sleep    2
+
+    # 此时已确定出于剧情中 如果检测不到按钮直接报错
+    ${element}=    CV Find Image Element    ${path_skip}
+    CV Click Image Element    ${element}
+    Sleep    2
+    ${element}=    CV Find Image Element    ${path_skip_active}
+    CV Click Image Element    ${element}
     RETURN    ${True}
 
 Check Activity Popup Overlay
