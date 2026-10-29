@@ -85,5 +85,6 @@ Check Activity Overlay
             Sleep    5
         END
 
+        Sleep    1
         ${exists}=    Run Keyword And Return Status    CV Find Image Element    ${path_live}
     END
