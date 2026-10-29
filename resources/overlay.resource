@@ -16,12 +16,12 @@ Check Story Overlay
     END
 
     CV Click Image Element    ${result}[1]
-    Sleep    2
+    Sleep    1
 
     # 此时已确定出于剧情中 如果检测不到按钮直接报错
     ${element}=    CV Find Image Element    ${path_skip}
     CV Click Image Element    ${element}
-    Sleep    2
+    Sleep    1
     ${element}=    CV Find Image Element    ${path_skip_active}
     CV Click Image Element    ${element}
     RETURN    ${True}
@@ -48,7 +48,7 @@ Check Activity Popup Overlay
             CV Click Image Element    ${element_close}[1]
         END
 
-        Sleep    3
+        Sleep    1
 
         ${element_next}=    Run Keyword And Ignore Error    CV Find Image Element    ${path_next}
         ${element_next_active}=    Run Keyword And Ignore Error    CV Find Image Element    ${path_next_active}
@@ -74,15 +74,20 @@ Check Activity Overlay
     ${exists}=    Run Keyword And Return Status    CV Find Image Element    ${path_live}
     WHILE    not(${exists})
         ${result_story}=    Check Story Overlay
-        IF    ${result_story}    Sleep    3
+        IF    ${result_story}    Sleep    1
         ${result_activity}=    Check Activity Popup Overlay
-        IF    ${result_activity}    Sleep    3
+        IF    ${result_activity}    Sleep    1
 
         IF    not(${result_story}) and not(${result_activity})
             # 这种情况一般是新卡面广告
-            Sleep    20
-            Click Center
-            Sleep    5
+            Sleep    10
+            ${exists}=    Run Keyword And Return Status    CV Find Image Element    ${path_live}
+            IF    ${exists}
+                BREAK
+            ELSE
+                Click Center
+                Sleep    2
+            END
         END
 
         Sleep    1
