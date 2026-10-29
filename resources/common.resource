@@ -2,6 +2,7 @@
 Library    AppiumLibrary
 
 Resource    ./login.resource
+Resource    ./overlay.resource
 # 敏感信息统一管理
 Resource    ../configs/data.resource
 
@@ -42,6 +43,9 @@ Open Garupa
 
     Check Login
     Log To Console    \nLogin OK
+
+    Check Activity Overlay
+    Log To Console    \nOverlay Checked
 
 Close Garupa
     Terminate Application    ${APP_PACKAGE}
